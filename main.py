@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 import requests
 import sys
 import enquiries
+from datetime import datetime, date, timedelta
 
 
 def main():
@@ -71,7 +72,7 @@ def main():
             # go to next page
             if selected == NEXT_PAGE:
                 page += 1
-                pass
+                continue
 
             # go to search prompt
             if selected == START_OVER:
@@ -122,12 +123,112 @@ def main():
     print(f"Dates: {dates}")
 
     # connect google service account, sourced from ~/.config/gspread/service_account.json
-    # gc = gspread.service_account()
+    gc = gspread.service_account()
+
+    print('Searching for this title in your spreadsheet...')
 
     # open spreadsheet by name
-    # sh = gc.open("movie_ratings")
+    sh = gc.open("watched")
 
-    # print(sh.sheet1.get('A1'))
+    sheet = sh.sheet1
+
+    # check if it exists in the table
+    id_cell = sheet.find(str(id))
+
+    AYA = 'aya'
+    AZAT = 'azat'
+    viewers = [AYA, AZAT]
+
+    SKIP = '[skip]'
+    scores = [SKIP, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+
+    if id_cell:
+        print('Found in your spreadsheet')
+        found_row = sheet.row_values(id_cell.row)
+
+        print(f"Title: {found_row[0]}")
+        print(f"Creators: {found_row[1]}")
+        print(f"Dates: {found_row[2]}")
+        print(f"Aya: {found_row[4]}, {found_row[5]}, {found_row[6]}")
+        print(f"Azat: {found_row[7]}, {found_row[8]}, {found_row[9]}")
+
+        # update scores
+        for viewer in viewers:
+            updated = []
+            score = enquiries.choose(f'{viewer}: score', scores)
+
+            if score == SKIP:
+                continue
+
+            updated.append(score)
+
+            is_fav = enquiries.confirm(f"{viewer}: flag as favorite?")
+
+            updated.append(is_fav)
+
+            TODAY = 'Today'
+            YESTERDAY = 'Yesterday'
+            ENTER_DATE = 'Enter date'
+
+            dates = [TODAY, YESTERDAY, ENTER_DATE]
+            date_watched = enquiries.choose(f"{viewer}: date watched", dates)
+
+            DATE_FORMAT = '%m/%d/%Y'
+            if date_watched == TODAY:
+                updated.append(date.today().strftime(DATE_FORMAT))
+            elif date_watched == YESTERDAY:
+                updated.append(
+                    (date.today() - timedelta(days=1)).strftime(DATE_FORMAT))
+            else:
+                custom_date = input('Please enter date (m/d/y): ')
+                updated.append(custom_date)
+
+            print(updated)
+
+            col_start = 5 if viewer == AYA else 8
+
+            if updated:
+                for i in range(3):
+                    col = col_start + i
+                    sheet.update_cell(id_cell.row, col, updated[i])
+    else:
+        new_row = [title, creators, dates, id]
+
+        for viewer in viewers:
+            score = enquiries.choose(f'{viewer}: score', scores)
+
+            if score == SKIP:
+                new_row.append('')
+                new_row.append('')
+                new_row.append('')
+                continue
+
+            new_row.append(score)
+
+            is_fav = enquiries.confirm(f"{viewer}: flag as favorite?")
+
+            new_row.append(is_fav)
+
+            TODAY = 'Today'
+            YESTERDAY = 'Yesterday'
+            ENTER_DATE = 'Enter date'
+
+            dates = [TODAY, YESTERDAY, ENTER_DATE]
+            date_watched = enquiries.choose(f"{viewer}: date watched", dates)
+
+            DATE_FORMAT = '%m/%d/%Y'
+            if date_watched == TODAY:
+                new_row.append(date.today().strftime(DATE_FORMAT))
+            elif date_watched == YESTERDAY:
+                new_row.append(
+                    (date.today() - timedelta(days=1)).strftime(DATE_FORMAT))
+            else:
+                custom_date = input('Please enter date (m/d/y): ')
+                new_row.append(custom_date)
+
+            print(new_row)
+        
+        sheet.append_row(new_row)
 
 
 if __name__ == "__main__":

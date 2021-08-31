@@ -5,16 +5,29 @@ from urllib.parse import urlencode
 import requests
 import sys
 import enquiries
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 
 
 def main():
+
+    api_key = get_api_key()
+
+    (id, category) = search_by_title(api_key)
+
+    info = get_info(id, category, api_key)
+
+    update_spreadsheet(info)
+
+
+def get_api_key():
     # load api key from .env
     load_dotenv()
     api_key = os.environ['THEMOVIEDB_API_KEY']
+    return api_key
 
-    # search movies, tv
-    search_endpoint = f"https://api.themoviedb.org/3/search/multi"
+
+def search_by_title(api_key):
+    search_endpoint = "https://api.themoviedb.org/3/search/multi"
 
     # prompt loop
     while True:
@@ -33,9 +46,10 @@ def main():
                 'page': page,
                 'query': search_term,
             })
+
             search_url = f'{search_endpoint}?{search_query}'
 
-            print("Searching...")
+            print(f"Searching for titles containing {search_term}...")
 
             search_response = requests.get(search_url)
 
@@ -88,6 +102,10 @@ def main():
         if id and category:
             break
 
+    return (id, category)
+
+
+def get_info(id, category, api_key):
     print("Searching info...")
 
     id_endpoint = f'https://api.themoviedb.org/3/{category}/'
@@ -122,6 +140,10 @@ def main():
     print(f"Creators: {creators}")
     print(f"Dates: {dates}")
 
+    return (title, creators, dates, id)
+
+
+def update_spreadsheet(info):
     # connect google service account, sourced from ~/.config/gspread/service_account.json
     gc = gspread.service_account()
 
@@ -159,75 +181,75 @@ def main():
 
             if score == SKIP:
                 continue
-
-            updated.append(score)
-
-            is_fav = enquiries.confirm(f"{viewer}: flag as favorite?")
-
-            updated.append(is_fav)
-
-            TODAY = 'Today'
-            YESTERDAY = 'Yesterday'
-            ENTER_DATE = 'Enter date'
-
-            dates = [TODAY, YESTERDAY, ENTER_DATE]
-            date_watched = enquiries.choose(f"{viewer}: date watched", dates)
-
-            DATE_FORMAT = '%m/%d/%Y'
-            if date_watched == TODAY:
-                updated.append(date.today().strftime(DATE_FORMAT))
-            elif date_watched == YESTERDAY:
-                updated.append(
-                    (date.today() - timedelta(days=1)).strftime(DATE_FORMAT))
             else:
-                custom_date = input('Please enter date (m/d/y): ')
-                updated.append(custom_date)
+                updated.append(score)
+
+                is_fav = enquiries.confirm(f"{viewer}: flag as favorite?")
+
+                updated.append(is_fav)
+
+                TODAY = 'Today'
+                YESTERDAY = 'Yesterday'
+                ENTER_DATE = 'Enter date'
+
+                dates = [TODAY, YESTERDAY, ENTER_DATE]
+                date_watched = enquiries.choose(f"{viewer}: date watched",
+                                                dates)
+
+                DATE_FORMAT = '%m/%d/%Y'
+                if date_watched == TODAY:
+                    updated.append(date.today().strftime(DATE_FORMAT))
+                elif date_watched == YESTERDAY:
+                    updated.append((date.today() -
+                                    timedelta(days=1)).strftime(DATE_FORMAT))
+                else:
+                    custom_date = input('Please enter date (m/d/y): ')
+                    updated.append(custom_date)
 
             print(updated)
 
             col_start = 5 if viewer == AYA else 8
 
-            if updated:
-                for i in range(3):
-                    col = col_start + i
-                    sheet.update_cell(id_cell.row, col, updated[i])
+            for i in range(3):
+                col = col_start + i
+                sheet.update_cell(id_cell.row, col, updated[i])
     else:
-        new_row = [title, creators, dates, id]
+        new_row = list(info)
 
         for viewer in viewers:
             score = enquiries.choose(f'{viewer}: score', scores)
 
             if score == SKIP:
-                new_row.append('')
-                new_row.append('')
-                new_row.append('')
-                continue
-
-            new_row.append(score)
-
-            is_fav = enquiries.confirm(f"{viewer}: flag as favorite?")
-
-            new_row.append(is_fav)
-
-            TODAY = 'Today'
-            YESTERDAY = 'Yesterday'
-            ENTER_DATE = 'Enter date'
-
-            dates = [TODAY, YESTERDAY, ENTER_DATE]
-            date_watched = enquiries.choose(f"{viewer}: date watched", dates)
-
-            DATE_FORMAT = '%m/%d/%Y'
-            if date_watched == TODAY:
-                new_row.append(date.today().strftime(DATE_FORMAT))
-            elif date_watched == YESTERDAY:
-                new_row.append(
-                    (date.today() - timedelta(days=1)).strftime(DATE_FORMAT))
+                new_row.append('—')
+                new_row.append('—')
+                new_row.append('—')
             else:
-                custom_date = input('Please enter date (m/d/y): ')
-                new_row.append(custom_date)
+                new_row.append(score)
 
-            print(new_row)
-        
+                is_fav = enquiries.confirm(f"{viewer}: flag as favorite?")
+
+                new_row.append(is_fav)
+
+                TODAY = 'Today'
+                YESTERDAY = 'Yesterday'
+                ENTER_DATE = 'Enter date'
+
+                dates = [TODAY, YESTERDAY, ENTER_DATE]
+                date_watched = enquiries.choose(f"{viewer}: date watched",
+                                                dates)
+
+                DATE_FORMAT = '%m/%d/%Y'
+                if date_watched == TODAY:
+                    new_row.append(date.today().strftime(DATE_FORMAT))
+                elif date_watched == YESTERDAY:
+                    new_row.append((date.today() -
+                                    timedelta(days=1)).strftime(DATE_FORMAT))
+                else:
+                    custom_date = input('Please enter date (m/d/y): ')
+                    new_row.append(custom_date)
+
+        print(new_row)
+
         sheet.append_row(new_row)
 
 

@@ -49,7 +49,7 @@ def search_by_title(api_key):
 
             search_url = f'{search_endpoint}?{search_query}'
 
-            print(f"Searching for titles containing {search_term}...")
+            print(f"Searching for titles containing '{search_term}' ...")
 
             search_response = requests.get(search_url)
 
@@ -106,7 +106,8 @@ def search_by_title(api_key):
 
 
 def get_info(id, category, api_key):
-    print("Searching info...")
+    print("-" * 40)
+    print("Searching info about selected title...")
 
     id_endpoint = f'https://api.themoviedb.org/3/{category}/'
     id_query = urlencode({"api_key": api_key, 'append_to_response': 'credits'})
@@ -134,7 +135,8 @@ def get_info(id, category, api_key):
         [info.get('first_air_date'),
          info.get('last_air_date')])
 
-    print('About this movie')
+
+    print('Found something!')
 
     print(f"Title: {title}")
     print(f"Creators: {creators}")
@@ -144,6 +146,7 @@ def get_info(id, category, api_key):
 
 
 def update_spreadsheet(info):
+    print("-" * 40)
     # connect google service account, sourced from ~/.config/gspread/service_account.json
     gc = gspread.service_account()
 
@@ -154,8 +157,9 @@ def update_spreadsheet(info):
 
     sheet = sh.sheet1
 
+    id_with_prefix = f"id-{info[3]}"
     # check if it exists in the table
-    id_cell = sheet.find(str(id))
+    id_cell = sheet.find(id_with_prefix)
 
     AYA = 'aya'
     AZAT = 'azat'
@@ -214,6 +218,7 @@ def update_spreadsheet(info):
                 col = col_start + i
                 sheet.update_cell(id_cell.row, col, updated[i])
     else:
+        print("Nothing found in your spreadsheet")
         new_row = list(info)
 
         for viewer in viewers:

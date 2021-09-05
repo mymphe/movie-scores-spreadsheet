@@ -135,7 +135,6 @@ def get_info(id, category, api_key):
         [info.get('first_air_date'),
          info.get('last_air_date')])
 
-
     print('Found something!')
 
     print(f"Title: {title}")
@@ -200,14 +199,14 @@ def update_spreadsheet(info):
                 date_watched = enquiries.choose(f"{viewer}: date watched",
                                                 dates)
 
-                DATE_FORMAT = '%m/%d/%Y'
+                DATE_FORMAT = '%d.%m.%Y'
                 if date_watched == TODAY:
                     updated.append(date.today().strftime(DATE_FORMAT))
                 elif date_watched == YESTERDAY:
                     updated.append((date.today() -
                                     timedelta(days=1)).strftime(DATE_FORMAT))
                 else:
-                    custom_date = input('Please enter date (m/d/y): ')
+                    custom_date = input('Please enter date (d.m.y): ')
                     updated.append(custom_date)
 
             print(updated)
@@ -219,7 +218,7 @@ def update_spreadsheet(info):
                 sheet.update_cell(id_cell.row, col, updated[i])
     else:
         print("Nothing found in your spreadsheet")
-        new_row = list(info)
+        new_row = [info[0], info[1], info[2], f'id-{info[3]}']
 
         for viewer in viewers:
             score = enquiries.choose(f'{viewer}: score', scores)
